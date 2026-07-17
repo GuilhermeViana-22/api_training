@@ -23,18 +23,18 @@ Plataforma de gestão de treinos para Personal Trainers e seus alunos.
 
 | # | Documento | Descrição |
 |---|-----------|-----------|
-| 01 | [Visão Geral](01-visao-geral.md) | Missão, personas, stack e glossário |
-| 02 | [Regras de Negócio](02-regras-de-negocio.md) | RBAC, validações e estados do sistema |
-| 03 | [Modelagem de Banco](03-modelagem-banco.md) | ER diagram, DDL, índices e migrações |
-| 04 | [Autenticação](04-autenticacao.md) | JWT, login, refresh e segurança |
-| 05 | [API REST](05-api-rest.md) | Todas as rotas, payloads e exemplos |
-| 06 | [Dashboard Admin](06-dashboard-admin.md) | Funcionalidades do Personal Trainer |
-| 07 | [Área do Aluno](07-area-aluno.md) | Experiência e regras de visualização |
-| 08 | [Docker](08-docker.md) | Compose, Dockerfile, env e deploy |
-| 09 | [Estrutura do Projeto](09-estrutura-do-projeto.md) | Pastas, camadas e responsabilidades |
-| 10 | [Roadmap](10-roadmap.md) | Fases, critérios de aceite e backlog |
-| 11 | [Fluxos](11-fluxos.md) | Fluxogramas dos processos principais |
-| 12 | [Convenções](12-convencoes.md) | Padrões de código, testes e commits |
+| 01 | [Visão Geral](docs/01-visao-geral.md) | Missão, personas, stack e glossário |
+| 02 | [Regras de Negócio](docs/02-regras-de-negocio.md) | RBAC, validações e estados do sistema |
+| 03 | [Modelagem de Banco](docs/03-modelagem-banco.md) | ER diagram, DDL, índices e migrações |
+| 04 | [Autenticação](docs/04-autenticacao.md) | JWT, login, refresh e segurança |
+| 05 | [API REST](docs/05-api-rest.md) | Todas as rotas, payloads e exemplos |
+| 06 | [Dashboard Admin](docs/06-dashboard-admin.md) | Funcionalidades do Personal Trainer |
+| 07 | [Área do Aluno](docs/07-area-aluno.md) | Experiência e regras de visualização |
+| 08 | [Docker](docs/08-docker.md) | Compose, Dockerfile, env e deploy |
+| 09 | [Estrutura do Projeto](docs/09-estrutura-do-projeto.md) | Pastas, camadas e responsabilidades |
+| 10 | [Roadmap](docs/10-roadmap.md) | Fases, critérios de aceite e backlog |
+| 11 | [Fluxos](docs/11-fluxos.md) | Fluxogramas dos processos principais |
+| 12 | [Convenções](docs/12-convencoes.md) | Padrões de código, testes e commits |
 
 ## Início rápido (referência)
 
@@ -52,7 +52,7 @@ docker compose exec api alembic upgrade head
 open http://localhost:8000/docs
 ```
 
-Consulte [08-docker.md](08-docker.md) para instruções completas de desenvolvimento e produção.
+Consulte [docs/08-docker.md](docs/08-docker.md) para instruções completas de desenvolvimento e produção.
 
 ## Backend — Desenvolvimento local
 
@@ -178,12 +178,12 @@ Use o `Dockerfile` na raiz. Configure `DATABASE_URL` apontando para o MySQL do D
 
 Para implementar o sistema do zero, siga esta sequência:
 
-1. `01-visao-geral.md` → contexto
-2. `02-regras-de-negocio.md` → regras
-3. `03-modelagem-banco.md` → schema
-4. `09-estrutura-do-projeto.md` → scaffolding
-5. `04-autenticacao.md` → auth
-6. `05-api-rest.md` → endpoints
-7. `08-docker.md` → infraestrutura
-8. `06-dashboard-admin.md` + `07-area-aluno.md` → integração frontend
-9. `11-fluxos.md` + `12-convencoes.md` → referência contínua
+1. `docs/01-visao-geral.md` → contexto
+2. `docs/02-regras-de-negocio.md` → regras
+3. `docs/03-modelagem-banco.md` → schema
+4. `docs/09-estrutura-do-projeto.md` → scaffolding
+5. `docs/04-autenticacao.md` → auth
+6. `docs/05-api-rest.md` → endpoints
+7. `docs/08-docker.md` → infraestrutura
+8. `docs/06-dashboard-admin.md` + `docs/07-area-aluno.md` → integração frontend
+9. `docs/11-fluxos.md` + `docs/12-convencoes.md` → referência contínua

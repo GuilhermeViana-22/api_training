@@ -144,6 +144,11 @@ smart_training/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
+├── docs/
+│   ├── 01-visao-geral.md
+│   ├── 02-regras-de-negocio.md
+│   ├── …
+│   └── 12-convencoes.md
 └── pytest.ini
 ```
 
