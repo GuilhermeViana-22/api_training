@@ -1,7 +1,7 @@
 import logging
 from functools import lru_cache
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,12 @@ class Settings(BaseSettings):
             url = url.replace("mysql://", "mysql+pymysql://", 1)
             logger.warning("DATABASE_URL ajustado para mysql+pymysql:// (driver PyMySQL)")
         return url
+
+    @model_validator(mode="after")
+    def enforce_production_defaults(self) -> "Settings":
+        if self.app_env.strip().lower() == "production":
+            self.app_debug = False
+        return self
 
     @property
     def cors_origins_list(self) -> list[str]:

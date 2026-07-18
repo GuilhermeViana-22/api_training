@@ -17,6 +17,7 @@ services:
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
+      CORS_ORIGINS: https://app.personal.guilhermeviana.com,http://localhost:4030
     volumes:
       - uploads_data:/app/uploads
     networks:

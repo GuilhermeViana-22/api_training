@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.exceptions import AppError
 
@@ -32,6 +33,24 @@ def register_exception_handlers(app: FastAPI) -> None:
                     "code": "VALIDATION_ERROR",
                     "message": "Erro de validação nos campos enviados.",
                     "details": details,
+                }
+            },
+        )
+
+    @app.exception_handler(SQLAlchemyError)
+    async def database_error_handler(_request: Request, exc: SQLAlchemyError) -> JSONResponse:
+        from app.core.config import settings
+
+        message = "Erro de banco de dados."
+        if settings.app_debug:
+            message = str(exc)
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": {
+                    "code": "DATABASE_ERROR",
+                    "message": message,
+                    "details": {},
                 }
             },
         )

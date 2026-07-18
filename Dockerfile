@@ -16,19 +16,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
+COPY docker/entrypoint.sh /entrypoint.sh
 
 RUN mkdir -p /app/uploads/students /app/uploads/exercises \
-    && chown -R appuser:appgroup /app
+    && chown -R appuser:appgroup /app \
+    && chmod +x /entrypoint.sh
 
 USER appuser
 
 EXPOSE 9030
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:9030/health')" || exit 1
 
-CMD ["gunicorn", "app.main:app", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:9030", \
-     "--workers", "2", \
-     "--timeout", "120"]
+ENTRYPOINT ["/entrypoint.sh"]
