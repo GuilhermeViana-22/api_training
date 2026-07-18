@@ -1,0 +1,54 @@
+# =============================================================================
+# Dokploy — producao (MySQL EXTERNO, porta 9030)
+# =============================================================================
+# Painel Dokploy:
+#   1. Compose file: docker-compose.dokploy.yml
+#   2. Dominio: api.personal.guilhermeviana.com
+#   3. Container Port: 9030  ← OBRIGATORIO (senao 502 Bad Gateway)
+#   4. Network: dokploy-network
+#   5. DATABASE_URL no Environment (mysql+pymysql://...@host-mysql:3306/...)
+#
+# Se configurar dominio NO PAINEL, mantenha so as labels traefik de porta abaixo.
+# Se NAO usar dominio no painel, descomente o bloco "Router completo" no final.
+# =============================================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9030:9030"
+    env_file:
+      - .env
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      # OBRIGATORIO: Traefik → porta 9030 (nao 80)
+      - "traefik.http.services.api.loadbalancer.server.port=9030"
+
+      # Router completo (use se NAO configurar dominio no painel Dokploy):
+      # - "traefik.http.routers.smart-training-api.rule=Host(`api.personal.guilhermeviana.com`)"
+      # - "traefik.http.routers.smart-training-api.entrypoints=websecure"
+      # - "traefik.http.routers.smart-training-api.tls=true"
+      # - "traefik.http.routers.smart-training-api.tls.certresolver=letsencrypt"
+      # - "traefik.http.routers.smart-training-api.service=smart-training-api"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9030/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+volumes:
+  uploads_data:
+    driver: local
+
+networks:
+  dokploy-network:
+    external: true

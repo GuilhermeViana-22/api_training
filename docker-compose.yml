@@ -1,6 +1,7 @@
 services:
   # ──────────────────────────────────────────────────────────────────────────────
-  # BACKEND - API FastAPI
+  # BACKEND - API FastAPI (porta 9030)
+  # Producao Dokploy: use docker-compose.dokploy.yml (nao este arquivo)
   # ──────────────────────────────────────────────────────────────────────────────
   api:
     build:
@@ -11,11 +12,6 @@ services:
       - "${API_PORT:-9030}:9030"
     env_file:
       - .env
-    environment:
-      # Sobrescreve o DATABASE_URL do .env (que aponta pro host local via porta
-      # publicada 3310) — dentro da rede do compose o db é alcançado pelo nome
-      # do serviço, na porta interna 3306.
-      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-smart_user}:${MYSQL_PASSWORD:-smart_pass}@db:3306/${MYSQL_DATABASE:-smart_training}
     volumes:
       - uploads_data:/app/uploads
     depends_on:
@@ -27,11 +23,10 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dokploy-network"
+      # Traefik: porta interna 9030 (nome do service = "api" no compose)
+      - "traefik.http.services.api.loadbalancer.server.port=9030"
     restart: unless-stopped
 
-  # ──────────────────────────────────────────────────────────────────────────────
-  # DATABASE - MySQL
-  # ──────────────────────────────────────────────────────────────────────────────
   db:
     image: mysql:8.0
     container_name: smart_training_db
