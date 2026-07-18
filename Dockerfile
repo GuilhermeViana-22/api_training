@@ -22,13 +22,13 @@ RUN mkdir -p /app/uploads/students /app/uploads/exercises \
 
 USER appuser
 
-EXPOSE 8000
+EXPOSE 9030
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:9030/health')" || exit 1
 
 CMD ["gunicorn", "app.main:app", \
      "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:8000", \
+     "--bind", "0.0.0.0:9030", \
      "--workers", "2", \
      "--timeout", "120"]
