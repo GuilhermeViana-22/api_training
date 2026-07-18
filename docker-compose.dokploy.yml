@@ -1,26 +1,22 @@
-# =============================================================================
-# Dokploy — producao (MySQL EXTERNO, porta 9030)
-# =============================================================================
-# Painel Dokploy:
-#   1. Compose file: docker-compose.dokploy.yml
-#   2. Dominio: api.personal.guilhermeviana.com
-#   3. Container Port: 9030  ← OBRIGATORIO (senao 502 Bad Gateway)
-#   4. Network: dokploy-network
-#   5. DATABASE_URL no Environment (mysql+pymysql://...@host-mysql:3306/...)
+# Dokploy — producao (MySQL externo, porta 9030)
+# Variaveis: cadastre TODAS no painel Dokploy (Environment). Nao depende de arquivo .env no servidor.
 #
-# Se configurar dominio NO PAINEL, mantenha so as labels traefik de porta abaixo.
-# Se NAO usar dominio no painel, descomente o bloco "Router completo" no final.
-# =============================================================================
+# Painel Dokploy:
+#   Compose file: docker-compose.dokploy.yml
+#   Container Port: 9030
+#   Network: dokploy-network
+#   Se usar dominio NO PAINEL, desative router duplicado ou use so as labels abaixo.
 
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "9030:9030"
-    env_file:
-      - .env
+    expose:
+      - "9030"
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
     volumes:
       - uploads_data:/app/uploads
     networks:
@@ -28,22 +24,27 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=dokploy-network"
-      # OBRIGATORIO: Traefik → porta 9030 (nao 80)
-      - "traefik.http.services.api.loadbalancer.server.port=9030"
 
-      # Router completo (use se NAO configurar dominio no painel Dokploy):
-      # - "traefik.http.routers.smart-training-api.rule=Host(`api.personal.guilhermeviana.com`)"
-      # - "traefik.http.routers.smart-training-api.entrypoints=websecure"
-      # - "traefik.http.routers.smart-training-api.tls=true"
-      # - "traefik.http.routers.smart-training-api.tls.certresolver=letsencrypt"
-      # - "traefik.http.routers.smart-training-api.service=smart-training-api"
+      - "traefik.http.routers.smart-training-api.rule=Host(`api.personal.guilhermeviana.com`)"
+      - "traefik.http.routers.smart-training-api.entrypoints=websecure"
+      - "traefik.http.routers.smart-training-api.tls=true"
+      - "traefik.http.routers.smart-training-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.smart-training-api.service=smart-training-api"
+
+      - "traefik.http.services.smart-training-api.loadbalancer.server.port=9030"
+
+      - "traefik.http.routers.smart-training-api-http.rule=Host(`api.personal.guilhermeviana.com`)"
+      - "traefik.http.routers.smart-training-api-http.entrypoints=web"
+      - "traefik.http.routers.smart-training-api-http.middlewares=smart-training-api-https"
+      - "traefik.http.middlewares.smart-training-api-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.smart-training-api-https.redirectscheme.permanent=true"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9030/health')"]
       interval: 30s
       timeout: 5s
-      retries: 3
-      start_period: 25s
+      retries: 5
+      start_period: 40s
 
 volumes:
   uploads_data:
