@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_role
 from app.core.pagination import PaginatedResponse
 from app.database.session import get_db
 from app.repositories.exercise_repository import ExerciseRepository
-from app.schemas.exercise import ExerciseCreate, ExerciseDetailResponse, ExerciseListItem, ExerciseUpdate
+from app.schemas.exercise import ExerciseCreate, ExerciseDetailResponse, ExerciseImageResponse, ExerciseListItem, ExerciseUpdate
 from app.services import exercise_service, upload_service
 
 router = APIRouter()
@@ -17,11 +17,10 @@ def list_exercises(
     limit: int = Query(20, ge=1, le=100),
     search: str | None = None,
     muscle_group: str | None = None,
-    category_id: str | None = None,
     user=Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
-    return exercise_service.list_exercises(db, user.id, page, limit, search, muscle_group, category_id)
+    return exercise_service.list_exercises(db, user.id, page, limit, search, muscle_group)
 
 
 @router.post("", response_model=ExerciseDetailResponse, status_code=201)
@@ -46,11 +45,11 @@ def delete_exercise(exercise_id: str, user=Depends(require_role("admin")), db: S
     exercise_service.delete_exercise(db, user.id, exercise_id)
 
 
-@router.post("/{exercise_id}/images", status_code=201)
+@router.post("/{exercise_id}/images", response_model=ExerciseImageResponse, status_code=201)
 async def upload_exercise_image(
     exercise_id: str,
     file: UploadFile = File(...),
-    sort_order: int = 0,
+    sort_order: int = Form(0),
     user=Depends(require_role("admin")),
     db: Session = Depends(get_db),
 ):
@@ -79,3 +78,11 @@ def delete_exercise_image(
         raise NotFoundError()
     db.delete(image)
     db.commit()
+
+
+@router.post("/{exercise_id}/images/{image_id}/feature", response_model=ExerciseDetailResponse)
+def feature_exercise_image(
+    exercise_id: str, image_id: str, user=Depends(require_role("admin")), db: Session = Depends(get_db)
+):
+    """Marca uma midia como destaque (capa) do exercicio, desmarcando as demais."""
+    return exercise_service.set_featured_image(db, user.id, exercise_id, image_id)

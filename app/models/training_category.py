@@ -19,4 +19,3 @@ class TrainingCategory(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=False), server_default=func.now(), nullable=False)
 
     trainings = relationship("Training", back_populates="category")
-    exercises = relationship("Exercise", back_populates="category")

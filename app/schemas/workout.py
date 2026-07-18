@@ -11,6 +11,18 @@ class TrainingCategoryResponse(BaseModel):
     sort_order: int = 0
 
 
+class TrainingCategoryCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+    description: str | None = None
+    sort_order: int = 0
+
+
+class TrainingCategoryUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=100)
+    description: str | None = None
+    sort_order: int | None = None
+
+
 class ExerciseCompletionStatus(BaseModel):
     training_exercise_id: str
     exercise_name: str

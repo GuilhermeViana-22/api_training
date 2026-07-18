@@ -16,8 +16,12 @@ progress_repo = ProgressRepository()
 
 IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp"}
+GIF_EXTENSIONS = {"gif"}
+GIF_MIMES = {"image/gif"}
 VIDEO_EXTENSIONS = {"mp4", "webm", "mov"}
 VIDEO_MIMES = {"video/mp4", "video/webm", "video/quicktime"}
+
+EXERCISE_MEDIA_TYPES = {"image", "gif", "video"}
 
 
 def _ensure_dir(path: Path) -> None:
@@ -44,6 +48,46 @@ def _validate_image(content: bytes, filename: str) -> str:
         raise BusinessError("VALIDATION_ERROR", "MIME type não suportado.", 422)
 
     return ext
+
+
+def _classify_exercise_media(content: bytes, filename: str, content_type: str) -> tuple[str, str]:
+    """
+    Classifica e valida uma midia de exercicio (imagem, gif ou video).
+
+    Regras:
+    - Video é decidido por MIME/extensao, sem decodificar o conteudo (arquivos grandes).
+    - Imagem/gif: o tipo real é sempre confirmado pelo conteudo decodificado (Pillow),
+      nunca apenas pela extensao enviada pelo cliente — um .jpg renomeado para .gif
+      (ou vice-versa) é classificado pelo formato real do arquivo.
+    - Retorna (extensao_normalizada, media_type) com media_type em EXERCISE_MEDIA_TYPES.
+    """
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    mime = (content_type or mimetypes.guess_type(filename)[0] or "").lower()
+
+    if mime.startswith("video/") or ext in VIDEO_EXTENSIONS:
+        ext = _validate_video(content, filename)
+        return ext, "video"
+
+    max_bytes = settings.upload_max_size_mb * 1024 * 1024
+    if len(content) > max_bytes:
+        raise BusinessError("VALIDATION_ERROR", f"Arquivo excede {settings.upload_max_size_mb}MB.", 422)
+
+    try:
+        image = Image.open(BytesIO(content))
+        image.verify()
+        detected_format = (image.format or "").upper()
+    except Exception as exc:
+        raise BusinessError("VALIDATION_ERROR", "Arquivo de midia invalido.", 422) from exc
+
+    if detected_format == "GIF":
+        return "gif", "gif"
+
+    if detected_format in {"JPEG", "PNG", "WEBP"}:
+        return detected_format.lower().replace("jpeg", "jpg"), "image"
+
+    raise BusinessError(
+        "VALIDATION_ERROR", "Formato não suportado. Use JPEG, PNG, WebP, GIF ou video (MP4/WebM/MOV).", 422
+    )
 
 
 def _validate_video(content: bytes, filename: str) -> str:
@@ -172,12 +216,7 @@ async def save_exercise_media(db: Session, exercise_id: str, file: UploadFile, s
     filename = file.filename or "media.bin"
     content_type = (file.content_type or "").lower()
 
-    if content_type.startswith("video/") or filename.rsplit(".", 1)[-1].lower() in VIDEO_EXTENSIONS:
-        ext = _validate_video(content, filename)
-        media_type = "video"
-    else:
-        ext = _validate_image(content, filename)
-        media_type = "image"
+    ext, media_type = _classify_exercise_media(content, filename, content_type)
 
     relative_dir = Path("exercises") / exercise_id
     absolute_dir = Path(settings.upload_dir) / relative_dir
@@ -203,6 +242,7 @@ async def save_exercise_media(db: Session, exercise_id: str, file: UploadFile, s
         "media_type": media_type,
         "original_filename": media.original_filename,
         "sort_order": media.sort_order,
+        "is_featured": media.is_featured,
     }
 
 

@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.training_category import TrainingCategory
@@ -26,6 +27,9 @@ PRESET_CATEGORIES = [
 
 
 class CategoryRepository:
+    def list_all(self, db: Session) -> list[TrainingCategory]:
+        return db.query(TrainingCategory).order_by(TrainingCategory.sort_order.asc()).all()
+
     def list_active(self, db: Session) -> list[TrainingCategory]:
         return (
             db.query(TrainingCategory)
@@ -39,6 +43,26 @@ class CategoryRepository:
 
     def get_by_slug(self, db: Session, slug: str) -> TrainingCategory | None:
         return db.query(TrainingCategory).filter(TrainingCategory.slug == slug).first()
+
+    def name_exists(self, db: Session, name: str, exclude_id: str | None = None) -> bool:
+        query = db.query(TrainingCategory.id).filter(func.lower(TrainingCategory.name) == name.lower())
+        if exclude_id:
+            query = query.filter(TrainingCategory.id != exclude_id)
+        return query.first() is not None
+
+    def create(self, db: Session, *, slug: str, name: str, description: str | None, sort_order: int) -> TrainingCategory:
+        category = TrainingCategory(id=generate_uuid(), slug=slug, name=name, description=description, sort_order=sort_order)
+        db.add(category)
+        db.flush()
+        return category
+
+    def is_in_use(self, db: Session, category_id: str) -> bool:
+        from app.models.training import Training
+
+        return db.query(Training.id).filter(Training.category_id == category_id).first() is not None
+
+    def delete(self, db: Session, category: TrainingCategory) -> None:
+        db.delete(category)
 
     def seed_presets(self, db: Session) -> None:
         for preset in PRESET_CATEGORIES:

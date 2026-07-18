@@ -18,7 +18,7 @@ class ExerciseRepository:
     def get_detail(self, db: Session, exercise_id: str, admin_id: str) -> Exercise | None:
         return (
             db.query(Exercise)
-            .options(joinedload(Exercise.images), joinedload(Exercise.category))
+            .options(joinedload(Exercise.images))
             .filter(Exercise.id == exercise_id, Exercise.admin_id == admin_id, Exercise.deleted_at.is_(None))
             .first()
         )
@@ -31,21 +31,29 @@ class ExerciseRepository:
         limit: int,
         search: str | None = None,
         muscle_group: str | None = None,
-        category_id: str | None = None,
     ) -> tuple[list[Exercise], int]:
-        query = db.query(Exercise).options(joinedload(Exercise.category)).filter(
-            Exercise.admin_id == admin_id, Exercise.deleted_at.is_(None)
-        )
+        query = db.query(Exercise).filter(Exercise.admin_id == admin_id, Exercise.deleted_at.is_(None))
         if search:
             query = query.filter(Exercise.name.ilike(f"%{search}%"))
         if muscle_group:
             query = query.filter(Exercise.muscle_group == muscle_group)
-        if category_id:
-            query = query.filter(Exercise.category_id == category_id)
 
         total = query.count()
         items = query.order_by(Exercise.name.asc()).offset((page - 1) * limit).limit(limit).all()
         return items, total
+
+    def search_by_name(self, db: Session, admin_id: str, term: str, limit: int = 5) -> list[Exercise]:
+        return (
+            db.query(Exercise)
+            .filter(
+                Exercise.admin_id == admin_id,
+                Exercise.deleted_at.is_(None),
+                Exercise.name.ilike(f"%{term}%"),
+            )
+            .order_by(Exercise.name.asc())
+            .limit(limit)
+            .all()
+        )
 
     def name_exists(self, db: Session, admin_id: str, name: str, exclude_id: str | None = None) -> bool:
         query = db.query(Exercise.id).filter(
@@ -82,13 +90,22 @@ class ExerciseRepository:
     def count_images(self, db: Session, exercise_id: str) -> int:
         return db.query(func.count(ExerciseImage.id)).filter(ExerciseImage.exercise_id == exercise_id).scalar() or 0
 
+    def set_featured_image(self, db: Session, exercise_id: str, image: ExerciseImage) -> None:
+        db.query(ExerciseImage).filter(
+            ExerciseImage.exercise_id == exercise_id, ExerciseImage.id != image.id
+        ).update({"is_featured": False}, synchronize_session=False)
+        image.is_featured = True
+        db.flush()
+
     def is_in_active_training(self, db: Session, exercise_id: str) -> bool:
         from app.models.training import Training
+        from app.models.training_day import TrainingDay
         from app.models.training_exercise import TrainingExercise
 
         return (
             db.query(TrainingExercise.id)
-            .join(Training, Training.id == TrainingExercise.training_id)
+            .join(TrainingDay, TrainingDay.id == TrainingExercise.training_day_id)
+            .join(Training, Training.id == TrainingDay.training_id)
             .filter(TrainingExercise.exercise_id == exercise_id, Training.status == "active")
             .first()
             is not None

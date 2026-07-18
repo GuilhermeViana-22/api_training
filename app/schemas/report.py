@@ -78,6 +78,7 @@ class ReportsOverviewResponse(BaseModel):
     trainings_expiring_soon: int
     avg_weekly_attendance_pct: float
     check_ins_this_week: int
+    check_ins_this_week_per_day: list[int]
     new_progress_photos_this_month: int
 
 

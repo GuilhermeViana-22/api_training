@@ -60,6 +60,20 @@ def get_training(training_id: str, user=Depends(require_role("admin")), db: Sess
     return training_service.get_training(db, user.id, training_id)
 
 
+@router.put("/{training_id}/complete", response_model=TrainingDetailResponse)
+def update_training_complete(
+    training_id: str,
+    data: TrainingCompleteCreate,
+    user=Depends(require_role("admin")),
+    db: Session = Depends(get_db),
+):
+    """
+    Substitui integralmente um treino existente (metadados + dias + exercicios) em uma unica
+    requisicao — mesmo shape de payload do POST /complete, usado pelo wizard em modo edicao.
+    """
+    return training_service.update_training_complete(db, user.id, training_id, data)
+
+
 @router.put("/{training_id}", response_model=TrainingDetailResponse)
 def update_training(
     training_id: str, data: TrainingUpdate, user=Depends(require_role("admin")), db: Session = Depends(get_db)

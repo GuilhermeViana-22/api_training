@@ -70,6 +70,7 @@ def overview(db: Session, admin_id: str) -> ReportsOverviewResponse:
     with_training = training_repo.count_students_with_active_training(db, admin_id)
     expiring = training_repo.count_expiring_soon(db, admin_id)
     check_ins_week = attendance_repo.count_this_week_by_admin(db, admin_id)
+    check_ins_week_per_day = attendance_repo.count_this_week_by_admin_per_day(db, admin_id)
     photos_month = progress_repo.count_photos_this_month_by_admin(db, admin_id)
 
     week_start = date.today() - timedelta(days=date.today().weekday())
@@ -92,6 +93,7 @@ def overview(db: Session, admin_id: str) -> ReportsOverviewResponse:
         trainings_expiring_soon=expiring,
         avg_weekly_attendance_pct=avg_rate,
         check_ins_this_week=check_ins_week,
+        check_ins_this_week_per_day=check_ins_week_per_day,
         new_progress_photos_this_month=photos_month,
     )
 

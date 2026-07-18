@@ -88,6 +88,22 @@ class StudentRepository:
             or 0
         )
 
+    def search_by_name(self, db: Session, admin_id: str, term: str, limit: int = 5) -> list[StudentProfile]:
+        like = f"%{term}%"
+        return (
+            db.query(StudentProfile)
+            .options(joinedload(StudentProfile.user))
+            .join(User, User.id == StudentProfile.user_id)
+            .filter(
+                StudentProfile.admin_id == admin_id,
+                StudentProfile.deleted_at.is_(None),
+                or_(StudentProfile.full_name.ilike(like), User.email.ilike(like)),
+            )
+            .order_by(StudentProfile.full_name.asc())
+            .limit(limit)
+            .all()
+        )
+
     def count_total_students(self, db: Session, admin_id: str) -> int:
         return (
             db.query(func.count(StudentProfile.user_id))

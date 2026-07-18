@@ -63,7 +63,7 @@ def _enrich_exercises(day_exercises: list, completed_ids: set[str]) -> list[dict
 
 
 def _get_training_day_context(db: Session, student_id: str, day_of_week: int):
-    training = training_repo.get_active_for_student(db, student_id)
+    training = training_repo.get_active_for_student_in_period(db, student_id)
     if training is None:
         raise NotFoundError("Nenhum treino ativo encontrado.")
 
@@ -76,7 +76,7 @@ def _get_training_day_context(db: Session, student_id: str, day_of_week: int):
 
 
 def get_my_training(db: Session, student_id: str) -> StudentTrainingOverview:
-    training = training_repo.get_active_for_student(db, student_id)
+    training = training_repo.get_active_for_student_in_period(db, student_id)
     if training is None:
         raise NotFoundError("Nenhum treino ativo encontrado.")
 

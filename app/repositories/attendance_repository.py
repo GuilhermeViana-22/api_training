@@ -49,6 +49,9 @@ class AttendanceRepository:
             query = query.filter(AttendanceRecord.check_in_date <= end_date)
         return query.scalar() or 0
 
+    def count_by_training(self, db: Session, training_id: str) -> int:
+        return db.query(func.count(AttendanceRecord.id)).filter(AttendanceRecord.training_id == training_id).scalar() or 0
+
     def count_this_week_by_admin(self, db: Session, admin_id: str) -> int:
         from app.models.student_profile import StudentProfile
 
@@ -60,6 +63,21 @@ class AttendanceRepository:
             .scalar()
             or 0
         )
+
+    def count_this_week_by_admin_per_day(self, db: Session, admin_id: str) -> list[int]:
+        """Check-ins da semana atual (seg..dom), um total por dia."""
+        from app.models.student_profile import StudentProfile
+
+        week_start = date.today() - timedelta(days=date.today().weekday())
+        rows = (
+            db.query(AttendanceRecord.check_in_date, func.count(AttendanceRecord.id))
+            .join(StudentProfile, StudentProfile.user_id == AttendanceRecord.student_id)
+            .filter(StudentProfile.admin_id == admin_id, AttendanceRecord.check_in_date >= week_start)
+            .group_by(AttendanceRecord.check_in_date)
+            .all()
+        )
+        counts_by_date = {check_in_date: total for check_in_date, total in rows}
+        return [counts_by_date.get(week_start + timedelta(days=offset), 0) for offset in range(7)]
 
     def recent_by_student(self, db: Session, student_id: str, limit: int = 10) -> list[AttendanceRecord]:
         return (

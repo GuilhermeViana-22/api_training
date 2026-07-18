@@ -11,3 +11,6 @@ uploads/*
 *.egg-info/
 dist/
 build/
+# Added by code-review-graph
+.code-review-graph/
+.idea/

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import BusinessError, NotFoundError
 from app.core.pagination import PaginatedResponse, build_pagination
+from app.repositories.attendance_repository import AttendanceRepository
 from app.repositories.category_repository import CategoryRepository
 from app.repositories.exercise_repository import ExerciseRepository
 from app.repositories.student_repository import StudentRepository
@@ -28,6 +29,7 @@ training_repo = TrainingRepository()
 student_repo = StudentRepository()
 exercise_repo = ExerciseRepository()
 category_repo = CategoryRepository()
+attendance_repo = AttendanceRepository()
 
 
 def _category_dict(category) -> dict | None:
@@ -38,6 +40,25 @@ def _category_dict(category) -> dict | None:
 
 def _image_url(file_path: str) -> str:
     return f"/api/v1/uploads/{file_path}"
+
+
+MAX_LIST_MEDIA = 5
+
+
+def _collect_media(training) -> list[dict]:
+    """Midias dos exercicios do treino, na ordem dia -> exercicio -> midia, sem repetir a mesma midia, limitado a MAX_LIST_MEDIA."""
+    media: list[dict] = []
+    seen_ids: set[str] = set()
+    for day in sorted(training.days, key=lambda d: d.sort_order):
+        for entry in sorted(day.exercises, key=lambda e: e.sort_order):
+            for img in sorted(entry.exercise.images, key=lambda i: (not i.is_featured, i.sort_order)):
+                if img.id in seen_ids:
+                    continue
+                seen_ids.add(img.id)
+                media.append({"url": _image_url(img.file_path), "media_type": img.media_type})
+                if len(media) >= MAX_LIST_MEDIA:
+                    return media
+    return media
 
 
 def _to_list_item(training) -> TrainingListItem:
@@ -57,11 +78,12 @@ def _to_list_item(training) -> TrainingListItem:
         status=training.status,
         days_count=len(training.days),
         exercises_count=exercises_count,
+        media=_collect_media(training),
         created_at=training.created_at,
     )
 
 
-def _serialize_training(training) -> TrainingDetailResponse:
+def _serialize_training(db: Session, training) -> TrainingDetailResponse:
     days = []
     for day in sorted(training.days, key=lambda d: d.sort_order):
         exercises = []
@@ -72,6 +94,7 @@ def _serialize_training(training) -> TrainingDetailResponse:
                     id=entry.id,
                     exercise_id=entry.exercise_id,
                     exercise_name=entry.exercise.name,
+                    exercise_description=entry.exercise.description,
                     sets=entry.sets,
                     reps=entry.reps,
                     load_kg=float(entry.load_kg) if entry.load_kg is not None else None,
@@ -107,6 +130,7 @@ def _serialize_training(training) -> TrainingDetailResponse:
         end_date=training.end_date,
         status=training.status,
         days=days,
+        days_attended=attendance_repo.count_by_training(db, training.id),
         created_at=training.created_at,
         updated_at=training.updated_at,
     )
@@ -147,12 +171,42 @@ def _validate_category(db: Session, category_id: str | None) -> None:
         raise NotFoundError("Categoria de treino não encontrada.")
 
 
+def _validate_training_days(db: Session, admin_id: str, days: list) -> None:
+    """Valida ausencia de dia duplicado e existencia dos exercicios referenciados no payload.
+    Compartilhado entre create_training_complete e update_training_complete."""
+    seen_days: set[int] = set()
+    for day_data in days:
+        if day_data.day_of_week in seen_days:
+            raise BusinessError("DUPLICATE_DAY", f"Dia {day_data.day_of_week} duplicado no payload.", 409)
+        seen_days.add(day_data.day_of_week)
+        for exercise_data in day_data.exercises:
+            if exercise_repo.get_by_id(db, exercise_data.exercise_id, admin_id) is None:
+                raise NotFoundError(f"Exercício {exercise_data.exercise_id} não encontrado.")
+
+
+def _write_training_days(db: Session, training_id: str, days: list) -> None:
+    """Cria os dias/exercicios do payload para um treino que ja esta sem nenhum dia
+    (recem-criado, ou com os dias antigos removidos por update_training_complete)."""
+    for day_data in days:
+        day = training_repo.add_day(
+            db,
+            training_id,
+            day_of_week=day_data.day_of_week,
+            label=day_data.label,
+            notes=day_data.notes,
+            sort_order=day_data.sort_order,
+        )
+        for exercise_data in day_data.exercises:
+            training_repo.add_exercise_to_day(db, day.id, **exercise_data.model_dump())
+
+
 def create_training_complete(db: Session, admin_id: str, data: TrainingCompleteCreate) -> TrainingDetailResponse:
     """Cadastra treino completo vinculado ao aluno: dias da semana + exercícios em uma única operação."""
     if data.end_date < data.start_date:
         raise BusinessError("INVALID_DATE_RANGE", "Data inicial deve ser anterior ou igual à data final.")
 
     _validate_category(db, data.category_id)
+    _validate_training_days(db, admin_id, data.days)
 
     student = student_repo.get_by_id(db, data.student_id, admin_id)
     if student is None:
@@ -170,29 +224,53 @@ def create_training_complete(db: Session, admin_id: str, data: TrainingCompleteC
         status="draft",
     )
 
-    for day_data in data.days:
-        if training_repo.day_exists(db, training.id, day_data.day_of_week):
-            raise BusinessError("DUPLICATE_DAY", f"Dia {day_data.day_of_week} duplicado no payload.", 409)
-
-        day = training_repo.add_day(
-            db,
-            training.id,
-            day_of_week=day_data.day_of_week,
-            label=day_data.label,
-            notes=day_data.notes,
-            sort_order=day_data.sort_order,
-        )
-
-        for exercise_data in day_data.exercises:
-            exercise = exercise_repo.get_by_id(db, exercise_data.exercise_id, admin_id)
-            if exercise is None:
-                raise NotFoundError(f"Exercício {exercise_data.exercise_id} não encontrado.")
-            training_repo.add_exercise_to_day(db, day.id, **exercise_data.model_dump())
+    _write_training_days(db, training.id, data.days)
 
     if data.activate:
         if not training_repo.has_exercises(db, training.id):
             raise BusinessError("TRAINING_EMPTY", "Treino deve ter ao menos um dia com exercícios para ser ativado.")
         training_repo.complete_active_for_student(db, data.student_id, exclude_id=training.id)
+        training.status = "active"
+
+    db.commit()
+    return get_training(db, admin_id, training.id)
+
+
+def update_training_complete(
+    db: Session, admin_id: str, training_id: str, data: TrainingCompleteCreate
+) -> TrainingDetailResponse:
+    """Substitui integralmente um treino existente: metadados + dias + exercicios, em uma unica operacao.
+    O aluno vinculado (student_id) nao e alterado por aqui — so create_training_complete atribui aluno."""
+    training = training_repo.get_by_id(db, training_id, admin_id)
+    if training is None:
+        raise NotFoundError()
+    if training.status in {"active", "completed"} and training_repo.has_student_interaction(db, training_id):
+        raise BusinessError(
+            "TRAINING_LOCKED",
+            "Aluno ja tem check-in ou treino registrado neste plano — nao pode ser editado.",
+        )
+    if data.end_date < data.start_date:
+        raise BusinessError("INVALID_DATE_RANGE", "Data inicial deve ser anterior ou igual à data final.")
+
+    _validate_category(db, data.category_id)
+    _validate_training_days(db, admin_id, data.days)
+
+    training.title = data.title
+    training.description = data.description
+    training.category_id = data.category_id
+    training.start_date = data.start_date
+    training.end_date = data.end_date
+
+    for day in list(training.days):
+        db.delete(day)
+    db.flush()
+
+    _write_training_days(db, training.id, data.days)
+
+    if data.activate and training.status != "active":
+        if not training_repo.has_exercises(db, training.id):
+            raise BusinessError("TRAINING_EMPTY", "Treino deve ter ao menos um dia com exercícios para ser ativado.")
+        training_repo.complete_active_for_student(db, training.student_id, exclude_id=training.id)
         training.status = "active"
 
     db.commit()
@@ -207,7 +285,7 @@ def get_training(db: Session, admin_id: str | None, training_id: str) -> Trainin
     training = training_repo.get_detail(db, training_id, admin_id)
     if training is None:
         raise NotFoundError()
-    return _serialize_training(training)
+    return _serialize_training(db, training)
 
 
 def create_training(db: Session, admin_id: str, data: TrainingCreate) -> TrainingDetailResponse:
@@ -271,8 +349,11 @@ def delete_training(db: Session, admin_id: str, training_id: str) -> None:
     training = training_repo.get_by_id(db, training_id, admin_id)
     if training is None:
         raise NotFoundError()
-    if training.status in {"active", "completed"}:
-        raise BusinessError("TRAINING_LOCKED", "Treino ativo ou concluído não pode ser excluído.")
+    if training.status in {"active", "completed"} and training_repo.has_student_interaction(db, training_id):
+        raise BusinessError(
+            "TRAINING_LOCKED",
+            "Aluno ja tem check-in ou treino registrado neste plano — nao pode ser excluido.",
+        )
 
     db.delete(training)
     db.commit()
@@ -358,13 +439,14 @@ def add_exercise_to_day(
         id=entry.id,
         exercise_id=entry.exercise_id,
         exercise_name=exercise.name,
+        exercise_description=exercise.description,
         sets=entry.sets,
         reps=entry.reps,
         load_kg=float(entry.load_kg) if entry.load_kg is not None else None,
         rest_seconds=entry.rest_seconds,
         sort_order=entry.sort_order,
         notes=entry.notes,
-        images=[{"url": _image_url(img.file_path)} for img in exercise.images],
+        images=[{"url": _image_url(img.file_path), "media_type": img.media_type} for img in exercise.images],
     )
 
 
@@ -388,13 +470,14 @@ def update_exercise_entry(
         id=entry.id,
         exercise_id=entry.exercise_id,
         exercise_name=exercise.name if exercise else "",
+        exercise_description=exercise.description if exercise else None,
         sets=entry.sets,
         reps=entry.reps,
         load_kg=float(entry.load_kg) if entry.load_kg is not None else None,
         rest_seconds=entry.rest_seconds,
         sort_order=entry.sort_order,
         notes=entry.notes,
-        images=[{"url": _image_url(img.file_path)} for img in (exercise.images if exercise else [])],
+        images=[{"url": _image_url(img.file_path), "media_type": img.media_type} for img in (exercise.images if exercise else [])],
     )
 
 

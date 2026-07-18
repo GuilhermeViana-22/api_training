@@ -113,6 +113,7 @@ class TrainingExerciseResponse(BaseModel):
     id: str
     exercise_id: str
     exercise_name: str
+    exercise_description: str | None = None
     sets: int
     reps: int
     load_kg: float | None = None
@@ -144,6 +145,7 @@ class TrainingListItem(BaseModel):
     status: str
     days_count: int = 0
     exercises_count: int = 0
+    media: list[dict] = Field(default_factory=list)
     created_at: datetime
 
 
@@ -169,5 +171,6 @@ class TrainingDetailResponse(BaseModel):
     end_date: date
     status: str
     days: list[TrainingDayResponse] = Field(default_factory=list)
+    days_attended: int = 0
     created_at: datetime
     updated_at: datetime

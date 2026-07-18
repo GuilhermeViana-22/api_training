@@ -2,12 +2,14 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.attendance_record import AttendanceRecord
 from app.models.exercise import Exercise
 from app.models.student_profile import StudentProfile
 from app.models.training import Training
 from app.models.training_category import TrainingCategory
 from app.models.training_day import TrainingDay
 from app.models.training_exercise import TrainingExercise
+from app.models.workout_session import WorkoutSession
 from app.utils.uuid import generate_uuid
 
 
@@ -46,7 +48,13 @@ class TrainingRepository:
     ) -> tuple[list[Training], int]:
         query = (
             db.query(Training)
-            .options(joinedload(Training.student).joinedload(StudentProfile.user), joinedload(Training.days).joinedload(TrainingDay.exercises))
+            .options(
+                joinedload(Training.student).joinedload(StudentProfile.user),
+                joinedload(Training.days)
+                .joinedload(TrainingDay.exercises)
+                .joinedload(TrainingExercise.exercise)
+                .joinedload(Exercise.images),
+            )
             .filter(Training.admin_id == admin_id)
         )
         if student_id:
@@ -57,6 +65,16 @@ class TrainingRepository:
         total = query.count()
         items = query.order_by(Training.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
         return items, total
+
+    def search_by_title(self, db: Session, admin_id: str, term: str, limit: int = 5) -> list[Training]:
+        return (
+            db.query(Training)
+            .options(joinedload(Training.student).joinedload(StudentProfile.user))
+            .filter(Training.admin_id == admin_id, Training.title.ilike(f"%{term}%"))
+            .order_by(Training.created_at.desc())
+            .limit(limit)
+            .all()
+        )
 
     def create(self, db: Session, admin_id: str, **kwargs) -> Training:
         training = Training(id=generate_uuid(), admin_id=admin_id, **kwargs)
@@ -77,6 +95,7 @@ class TrainingRepository:
         today = date.today()
         return (
             db.query(Training)
+            .options(joinedload(Training.category), joinedload(Training.days))
             .filter(
                 Training.student_id == student_id,
                 Training.status == "active",
@@ -180,6 +199,14 @@ class TrainingRepository:
             .filter(TrainingDay.training_id == training_id)
             .count()
         )
+
+    def has_student_interaction(self, db: Session, training_id: str) -> bool:
+        """True se o aluno ja fez check-in ou registrou/concluiu algum treino
+        (workout session), independente do status atual do plano."""
+        has_session = db.query(WorkoutSession.id).filter(WorkoutSession.training_id == training_id).first() is not None
+        if has_session:
+            return True
+        return db.query(AttendanceRecord.id).filter(AttendanceRecord.training_id == training_id).first() is not None
 
     def list_student_history(self, db: Session, student_id: str) -> list[Training]:
         return (
