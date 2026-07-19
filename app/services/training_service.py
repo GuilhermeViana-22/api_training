@@ -24,6 +24,7 @@ from app.schemas.training import (
     StudentTrainingSummary,
 )
 from app.utils.dates import day_name
+from app.utils.media import build_upload_url
 
 training_repo = TrainingRepository()
 student_repo = StudentRepository()
@@ -64,13 +65,16 @@ def _collect_media(training) -> list[dict]:
 def _to_list_item(training) -> TrainingListItem:
     exercises_count = sum(len(day.exercises) for day in training.days) if training.days else 0
     student_email = None
+    avatar_url = None
     if training.student and training.student.user:
         student_email = training.student.user.email
+        avatar_url = build_upload_url(training.student.user.avatar_path)
     return TrainingListItem(
         id=training.id,
         student_id=training.student_id,
         student_name=training.student.full_name,
         student_email=student_email,
+        avatar_url=avatar_url,
         title=training.title,
         category=_category_dict(training.category),
         start_date=training.start_date,

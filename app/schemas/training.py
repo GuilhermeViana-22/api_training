@@ -138,6 +138,7 @@ class TrainingListItem(BaseModel):
     student_id: str
     student_name: str
     student_email: str | None = None
+    avatar_url: str | None = None
     title: str
     category: dict | None = None
     start_date: date
