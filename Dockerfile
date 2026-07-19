@@ -18,7 +18,8 @@ COPY alembic/ ./alembic/
 COPY alembic.ini .
 COPY docker/entrypoint.sh /entrypoint.sh
 
-RUN mkdir -p /app/uploads/students /app/uploads/exercises \
+# app/main.py also creates these at startup; declared here too for documentation.
+RUN mkdir -p /app/uploads/students /app/uploads/exercises /app/uploads/avatars \
     && chown -R appuser:appgroup /app \
     && chmod +x /entrypoint.sh
 
