@@ -34,6 +34,7 @@ class AdminProfileResponse(BaseModel):
     cref: str | None = None
     phone: str | None = None
     bio: str | None = None
+    avatar_url: str | None = None
 
 
 class StudentProfileResponse(BaseModel):
@@ -43,6 +44,7 @@ class StudentProfileResponse(BaseModel):
     height_cm: float | None = None
     weight_kg: float | None = None
     goal: str | None = None
+    avatar_url: str | None = None
 
 
 class MeResponse(BaseModel):

@@ -15,6 +15,7 @@ from app.schemas.auth import (
     StudentProfileResponse,
     TokenResponse,
 )
+from app.utils.media import build_upload_url
 
 user_repo = UserRepository()
 refresh_repo = RefreshTokenRepository()
@@ -84,6 +85,7 @@ def get_me(db: Session, user) -> MeResponse:
             cref=user.admin_profile.cref,
             phone=user.admin_profile.phone,
             bio=user.admin_profile.bio,
+            avatar_url=build_upload_url(user.avatar_path),
         )
     else:
         sp = user.student_profile
@@ -94,6 +96,7 @@ def get_me(db: Session, user) -> MeResponse:
             height_cm=float(sp.height_cm) if sp.height_cm is not None else None,
             weight_kg=float(sp.weight_kg) if sp.weight_kg is not None else None,
             goal=sp.goal,
+            avatar_url=build_upload_url(user.avatar_path),
         )
 
     return MeResponse(

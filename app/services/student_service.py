@@ -15,6 +15,7 @@ from app.schemas.student import (
     StudentUpdate,
 )
 from app.schemas.report import StudentOption
+from app.utils.media import build_upload_url
 
 user_repo = UserRepository()
 student_repo = StudentRepository()
@@ -39,6 +40,7 @@ def _to_list_item(db: Session, profile) -> StudentListItem:
         phone=profile.phone,
         is_active=profile.user.is_active,
         active_training=active_training,
+        avatar_url=build_upload_url(profile.user.avatar_path),
         created_at=profile.user.created_at,
     )
 
@@ -90,6 +92,7 @@ def get_student(db: Session, admin_id: str, student_id: str) -> StudentDetailRes
         is_active=profile.user.is_active,
         trainings_count=student_repo.count_trainings(db, profile.user_id),
         last_check_in=student_repo.last_check_in(db, profile.user_id),
+        avatar_url=build_upload_url(profile.user.avatar_path),
         created_at=profile.user.created_at,
     )
 

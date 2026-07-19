@@ -22,7 +22,7 @@ def get_upload(
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if category not in {"students", "exercises"}:
+    if category not in {"students", "exercises", "avatars"}:
         raise NotFoundError()
 
     relative_path = f"{category}/{resource_id}/{filename}"
@@ -41,6 +41,18 @@ def get_upload(
         if user.role == "admin":
             exercise = ExerciseRepository().get_by_id(db, resource_id, user.id)
             if exercise is None:
+                raise ForbiddenError()
+    elif category == "avatars":
+        if user.id != resource_id:
+            if user.role == "admin":
+                student = StudentRepository().get_by_id(db, resource_id, user.id)
+                if student is None:
+                    raise ForbiddenError()
+            elif user.role == "student":
+                own_profile = StudentRepository().get_by_id(db, user.id)
+                if own_profile is None or own_profile.admin_id != resource_id:
+                    raise ForbiddenError()
+            else:
                 raise ForbiddenError()
 
     return FileResponse(absolute_path)

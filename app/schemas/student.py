@@ -54,6 +54,7 @@ class StudentListItem(BaseModel):
     phone: str | None = None
     is_active: bool
     active_training: ActiveTrainingSummary | None = None
+    avatar_url: str | None = None
     created_at: datetime
 
 
@@ -70,4 +71,5 @@ class StudentDetailResponse(BaseModel):
     is_active: bool
     trainings_count: int = 0
     last_check_in: date | None = None
+    avatar_url: str | None = None
     created_at: datetime

@@ -23,16 +23,13 @@ from app.schemas.attendance import (
 )
 from app.services import training_service
 from app.utils.dates import day_name
+from app.utils.media import build_upload_url as _photo_url
 
 attendance_repo = AttendanceRepository()
 progress_repo = ProgressRepository()
 training_repo = TrainingRepository()
 student_repo = StudentRepository()
 workout_repo = WorkoutRepository()
-
-
-def _photo_url(file_path: str) -> str:
-    return f"/api/v1/uploads/{file_path}"
 
 
 def _serialize_session(session, exercises_total: int, exercises: list[dict]) -> dict:

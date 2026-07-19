@@ -21,6 +21,7 @@ async def lifespan(_app: FastAPI):
     upload_path = Path(settings.upload_dir)
     (upload_path / "students").mkdir(parents=True, exist_ok=True)
     (upload_path / "exercises").mkdir(parents=True, exist_ok=True)
+    (upload_path / "avatars").mkdir(parents=True, exist_ok=True)
 
     try:
         db = SessionLocal()

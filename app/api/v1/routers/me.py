@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import require_role
+from app.auth.dependencies import get_current_user, require_role
 from app.database.session import get_db
 from app.schemas.attendance import (
     CheckInRequest,
@@ -14,8 +14,8 @@ from app.schemas.attendance import (
     StudentTrainingOverview,
 )
 from app.schemas.auth import MeResponse
-from app.schemas.profile import EmailChangeRequest, PasswordChangeRequest, ProfileUpdateRequest
-from app.services import me_service, profile_service, upload_service
+from app.schemas.profile import AdminProfileUpdateRequest, EmailChangeRequest, PasswordChangeRequest, ProfileUpdateRequest
+from app.services import auth_service, me_service, profile_service, upload_service
 
 router = APIRouter()
 
@@ -25,6 +25,27 @@ def update_my_profile(
     data: ProfileUpdateRequest, user=Depends(require_role("student")), db: Session = Depends(get_db)
 ):
     return profile_service.update_profile(db, user.id, data)
+
+
+@router.put("/admin-profile", response_model=MeResponse)
+def update_my_admin_profile(
+    data: AdminProfileUpdateRequest, user=Depends(require_role("admin")), db: Session = Depends(get_db)
+):
+    return profile_service.update_admin_profile(db, user.id, data)
+
+
+@router.post("/avatar", response_model=MeResponse)
+async def upload_my_avatar(
+    file: UploadFile = File(...), user=Depends(get_current_user), db: Session = Depends(get_db)
+):
+    await upload_service.save_avatar(db, user.id, file)
+    return auth_service.get_me(db, user)
+
+
+@router.delete("/avatar", response_model=MeResponse)
+def remove_my_avatar(user=Depends(get_current_user), db: Session = Depends(get_db)):
+    upload_service.delete_avatar(db, user.id)
+    return auth_service.get_me(db, user)
 
 
 @router.put("/password")

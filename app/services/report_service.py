@@ -23,15 +23,12 @@ from app.schemas.report import (
 )
 from app.services import training_service
 from app.services.training_service import _to_list_item
+from app.utils.media import build_upload_url as _photo_url
 
 student_repo = StudentRepository()
 training_repo = TrainingRepository()
 attendance_repo = AttendanceRepository()
 progress_repo = ProgressRepository()
-
-
-def _photo_url(file_path: str) -> str:
-    return f"/api/v1/uploads/{file_path}"
 
 
 def _expected_sessions(db: Session, training, period_start: date, period_end: date) -> int:

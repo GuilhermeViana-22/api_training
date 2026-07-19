@@ -28,6 +28,13 @@ class UserRepository:
         db.flush()
         return profile
 
+    def update_admin_profile(self, db: Session, profile: AdminProfile, **kwargs) -> AdminProfile:
+        for field, value in kwargs.items():
+            if value is not None:
+                setattr(profile, field, value)
+        db.flush()
+        return profile
+
     def get_with_profile(self, db: Session, user_id: str) -> User | None:
         return (
             db.query(User)

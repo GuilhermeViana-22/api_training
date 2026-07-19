@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.exceptions import BusinessError
+from app.models.user import User
 from app.repositories.attendance_repository import ProgressRepository
 from app.utils.uuid import generate_uuid
 
@@ -22,6 +23,8 @@ VIDEO_EXTENSIONS = {"mp4", "webm", "mov"}
 VIDEO_MIMES = {"video/mp4", "video/webm", "video/quicktime"}
 
 EXERCISE_MEDIA_TYPES = {"image", "gif", "video"}
+
+AVATAR_DIR = Path("avatars")
 
 
 def _ensure_dir(path: Path) -> None:
@@ -244,6 +247,42 @@ async def save_exercise_media(db: Session, exercise_id: str, file: UploadFile, s
         "sort_order": media.sort_order,
         "is_featured": media.is_featured,
     }
+
+
+async def save_avatar(db: Session, user_id: str, file: UploadFile) -> str:
+    content = await file.read()
+    ext = _validate_image(content, file.filename or "avatar.jpg")
+
+    user = db.get(User, user_id)
+    if user is None:
+        raise BusinessError("NOT_FOUND", "Usuário não encontrado.", 404)
+
+    relative_dir = AVATAR_DIR / user_id
+    absolute_dir = Path(settings.upload_dir) / relative_dir
+    _ensure_dir(absolute_dir)
+
+    if user.avatar_path:
+        old_absolute = Path(settings.upload_dir) / user.avatar_path
+        if old_absolute.exists():
+            old_absolute.unlink()
+
+    filename = f"avatar.{ext}"
+    relative_path = str(relative_dir / filename).replace("\\", "/")
+    (Path(settings.upload_dir) / relative_path).write_bytes(content)
+
+    user.avatar_path = relative_path
+    db.commit()
+    return relative_path
+
+
+def delete_avatar(db: Session, user_id: str) -> None:
+    user = db.get(User, user_id)
+    if user and user.avatar_path:
+        absolute_path = Path(settings.upload_dir) / user.avatar_path
+        if absolute_path.exists():
+            absolute_path.unlink()
+        user.avatar_path = None
+        db.commit()
 
 
 # Alias retrocompatível

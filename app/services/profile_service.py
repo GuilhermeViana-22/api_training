@@ -7,7 +7,7 @@ from app.core.exceptions import BusinessError, NotFoundError
 from app.repositories.student_repository import StudentRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import MeResponse
-from app.schemas.profile import EmailChangeRequest, PasswordChangeRequest, ProfileUpdateRequest
+from app.schemas.profile import AdminProfileUpdateRequest, EmailChangeRequest, PasswordChangeRequest, ProfileUpdateRequest
 from app.services import auth_service
 
 user_repo = UserRepository()
@@ -24,6 +24,17 @@ def update_profile(db: Session, user_id: str, data: ProfileUpdateRequest) -> MeR
         payload["birth_date"] = date.fromisoformat(payload["birth_date"])
 
     student_repo.update_profile(db, user.student_profile, **payload)
+    db.commit()
+    return auth_service.get_me(db, user)
+
+
+def update_admin_profile(db: Session, user_id: str, data: AdminProfileUpdateRequest) -> MeResponse:
+    user = user_repo.get_with_profile(db, user_id)
+    if user is None or user.role != "admin" or user.admin_profile is None:
+        raise NotFoundError()
+
+    payload = data.model_dump(exclude_unset=True)
+    user_repo.update_admin_profile(db, user.admin_profile, **payload)
     db.commit()
     return auth_service.get_me(db, user)
 
