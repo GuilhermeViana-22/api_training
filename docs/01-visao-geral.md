@@ -5,7 +5,7 @@
 O **Smart Training** é uma plataforma backend (API REST) destinada a Personal Trainers que precisam gerenciar alunos, montar treinos personalizados, acompanhar frequência e evolução física. O sistema opera com dois perfis distintos — Administrador e Aluno — onde **todo o controle operacional pertence ao Administrador**.
 
 Este documento estabelece o contexto do produto, a stack tecnológica, o escopo funcional e o glossário utilizado em toda a documentação.
-
+##teste
 ## Índice
 
 - [Missão e objetivos](#missão-e-objetivos)
